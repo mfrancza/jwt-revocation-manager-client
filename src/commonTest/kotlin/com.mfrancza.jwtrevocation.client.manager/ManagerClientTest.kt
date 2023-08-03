@@ -122,4 +122,48 @@ class ManagerClientTest {
         assertNull(endOfListResponse.cursor, "There should not longer be a cursor in the response")
     }
 
+    @Test
+    fun getRuleRuleFound() = runTest {
+        val rule = Rule(
+            ruleId = "test-rule-id",
+            ruleExpires = 1691085504,
+            iss = listOf(
+                StringEquals(
+                    "bad-iss.mfrancza.com"
+                )
+            )
+        )
+
+        val managerUrl = "https://mfrancza.com/jwt-revocation-manager"
+
+        val mockEngine = MockEngine { request ->
+            assertEquals(managerUrl + "/rules/" + rule.ruleId!!, request.url.toString(), "Relative path should be rules/{ruleId}")
+            respond(
+                content = ByteReadChannel(Json.encodeToString(rule)),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val client = ManagerClient(managerUrl, {}, mockEngine)
+
+        assertEquals(rule, client.getRule(rule.ruleId!!), "Expected rule should be returned")
+    }
+
+    @Test
+    fun getRuleRuleNotFound() = runTest {
+        val invalidRuleId = "not-a-ruleId"
+
+        val managerUrl = "https://mfrancza.com/jwt-revocation-manager"
+
+        val mockEngine = MockEngine { request ->
+            assertEquals("$managerUrl/rules/$invalidRuleId", request.url.toString(), "Relative path should be rules/{ruleId}")
+            respond(
+                content = "",
+                status = HttpStatusCode.NotFound
+            )
+        }
+        val client = ManagerClient(managerUrl, {}, mockEngine)
+
+        assertNull(client.getRule(invalidRuleId), "Expected rule should be returned")
+    }
 }

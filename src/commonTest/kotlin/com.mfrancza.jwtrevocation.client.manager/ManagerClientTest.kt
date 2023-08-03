@@ -170,7 +170,7 @@ class ManagerClientTest {
         }
         val client = ManagerClient(managerUrl, {}, mockEngine)
 
-        assertNull(client.getRule(invalidRuleId), "Expected rule should be returned")
+        assertNull(client.getRule(invalidRuleId), "Null should be returned when no Rule with ruleId is found")
     }
 
     @Test
@@ -203,5 +203,52 @@ class ManagerClientTest {
         assertNotNull(createdRule.ruleId, "The created rule should be assigned a ruleId")
 
         assertEquals(newRule, createdRule.copy(ruleId = null), "The configuration of the created rule should match the request")
+    }
+
+    @Test
+    fun deleteExistingRule() = runTest {
+        val rule = Rule(
+            ruleId = "test-rule-id",
+            ruleExpires = 1691085504,
+            iss = listOf(
+                StringEquals(
+                    "bad-iss.mfrancza.com"
+                )
+            )
+        )
+
+        val managerUrl = "https://mfrancza.com/jwt-revocation-manager"
+
+        val mockEngine = MockEngine { request ->
+            assertEquals(HttpMethod.Delete, request.method, "Method should be DELETE since we are deleting a record")
+            assertEquals(managerUrl + "/rules/" + rule.ruleId!!, request.url.toString(), "Relative path should be rules/{ruleId}")
+            respond(
+                content = ByteReadChannel(Json.encodeToString(rule)),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val client = ManagerClient(managerUrl, {}, mockEngine)
+
+        assertEquals(rule, client.deleteRule(rule.ruleId!!), "Expected rule should be returned")
+    }
+
+    @Test
+    fun deleteRuleNotFound() = runTest {
+        val invalidRuleId = "not-a-ruleId"
+
+        val managerUrl = "https://mfrancza.com/jwt-revocation-manager"
+
+        val mockEngine = MockEngine { request ->
+            assertEquals(HttpMethod.Delete, request.method, "Method should be DELETE since we are deleting a record")
+            assertEquals("$managerUrl/rules/$invalidRuleId", request.url.toString(), "Relative path should be rules/{ruleId}")
+            respond(
+                content = "",
+                status = HttpStatusCode.NotFound
+            )
+        }
+        val client = ManagerClient(managerUrl, {}, mockEngine)
+
+        assertNull(client.deleteRule(invalidRuleId), "Null should be returned when no Rule with ruleId is found")
     }
 }

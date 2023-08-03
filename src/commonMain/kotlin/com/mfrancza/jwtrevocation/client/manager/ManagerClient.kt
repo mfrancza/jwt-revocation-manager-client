@@ -66,8 +66,8 @@ class ManagerClient (private val managerUrl: String, bearerAuthConfig: BearerAut
     }.body()
 
     /**
-     * Retrieves a rule
-     * @param ruleId the ID of the rule
+     * Retrieves a Rule
+     * @param ruleId of the Rule to retrieve
      * @return the Rule with the ID or null if no matching rule is found
      */
     suspend fun getRule(ruleId: String) : Rule? = httpClient.get {
@@ -90,4 +90,16 @@ class ManagerClient (private val managerUrl: String, bearerAuthConfig: BearerAut
         contentType(ContentType.Application.Json)
         setBody(newRule)
     }.body()
+
+    /**
+     * Deletes a Rule
+     * @param ruleId of the Rule to delete
+     * @return the Rule that was deleted, or null if no Rule with ruleId was found
+     */
+    suspend fun deleteRule(ruleId: String) : Rule? = httpClient.delete {
+        url {
+            takeFrom(managerUrl)
+            appendPathSegments("rules", ruleId)
+        }
+    }.takeUnless { it.status == HttpStatusCode.NotFound }?.body()
 }

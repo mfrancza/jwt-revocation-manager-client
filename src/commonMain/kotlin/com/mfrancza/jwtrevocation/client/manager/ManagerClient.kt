@@ -13,9 +13,12 @@ import io.ktor.client.plugins.cache.HttpCache
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
+import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.appendPathSegments
+import io.ktor.http.contentType
 import io.ktor.http.takeFrom
 import io.ktor.serialization.kotlinx.json.json
 
@@ -73,4 +76,18 @@ class ManagerClient (private val managerUrl: String, bearerAuthConfig: BearerAut
             appendPathSegments("rules", ruleId)
         }
     }.takeUnless { it.status == HttpStatusCode.NotFound }?.body()
+
+    /**
+     * Creates a new rule
+     * @param newRule the rule to create; must not have a ruleId set
+     * @return the created rule with the ruleId set
+     */
+    suspend fun createRule(newRule: Rule) : Rule = httpClient.post {
+        url {
+            takeFrom(managerUrl)
+            appendPathSegments("rules")
+        }
+        contentType(ContentType.Application.Json)
+        setBody(newRule)
+    }.body()
 }

@@ -6,16 +6,22 @@ import com.mfrancza.jwtrevocation.rules.conditions.DateTimeAfter
 import com.mfrancza.jwtrevocation.rules.conditions.StringEquals
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.toByteArray
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 import io.ktor.http.headersOf
 import io.ktor.http.parseQueryString
+import io.ktor.util.Identity.decode
 import io.ktor.utils.io.ByteReadChannel
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.decodeFromString
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -165,5 +171,37 @@ class ManagerClientTest {
         val client = ManagerClient(managerUrl, {}, mockEngine)
 
         assertNull(client.getRule(invalidRuleId), "Expected rule should be returned")
+    }
+
+    @Test
+    fun createRule() = runTest {
+        val newRule = Rule(
+            ruleExpires = 1691085504,
+            iss = listOf(
+                StringEquals(
+                    "bad-iss.mfrancza.com"
+                )
+            )
+        )
+
+        val managerUrl = "https://mfrancza.com/jwt-revocation-manager"
+
+        val mockEngine = MockEngine { request ->
+            assertEquals(HttpMethod.Post, request.method, "Request should be a POST since we are creating a new rule")
+            assertEquals("$managerUrl/rules", request.url.toString(), "Relative path should be rules")
+            val createdRule : Rule = Json.decodeFromString<Rule>(request.body.toByteArray().decodeToString()).copy(ruleId = "assigned-ruleId")
+            respond(
+                content = ByteReadChannel(Json.encodeToString(createdRule)),
+                status = HttpStatusCode.Created,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val client = ManagerClient(managerUrl, {}, mockEngine)
+
+        val createdRule = client.createRule(newRule)
+
+        assertNotNull(createdRule.ruleId, "The created rule should be assigned a ruleId")
+
+        assertEquals(newRule, createdRule.copy(ruleId = null), "The configuration of the created rule should match the request")
     }
 }

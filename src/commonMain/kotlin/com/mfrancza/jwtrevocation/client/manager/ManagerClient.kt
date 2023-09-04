@@ -2,6 +2,7 @@ package com.mfrancza.jwtrevocation.client.manager
 
 import com.mfrancza.jwtrevocation.rules.PartialList
 import com.mfrancza.jwtrevocation.rules.Rule
+import com.mfrancza.jwtrevocation.rules.RuleSet
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.call.body
@@ -45,6 +46,17 @@ class ManagerClient (private val managerUrl: String, bearerAuthConfig: BearerAut
             HttpClient(configBlock)
         }
     }
+
+    /**
+     * Retrieves the current ruleset from the manager service
+     * @return the RuleSet containing the current rules
+     */
+    suspend fun getRuleSet() : RuleSet = httpClient.get {
+        url {
+            takeFrom(managerUrl)
+            appendPathSegments("ruleset")
+        }
+    }.body()
 
     /**
      * Lists the rules defined in the manager service

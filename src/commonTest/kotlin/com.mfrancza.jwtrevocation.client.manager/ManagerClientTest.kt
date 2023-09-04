@@ -2,6 +2,7 @@ package com.mfrancza.jwtrevocation.client.manager
 
 import com.mfrancza.jwtrevocation.rules.PartialList
 import com.mfrancza.jwtrevocation.rules.Rule
+import com.mfrancza.jwtrevocation.rules.RuleSet
 import com.mfrancza.jwtrevocation.rules.conditions.DateTimeAfter
 import com.mfrancza.jwtrevocation.rules.conditions.StringEquals
 import io.ktor.client.engine.mock.MockEngine
@@ -27,6 +28,45 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ManagerClientTest {
+
+    @Test
+    fun getRuleSet() = runTest {
+        val expectedRuleSet = RuleSet(
+            rules = listOf(
+                Rule(
+                    ruleExpires =  1686433017,
+                    exp = listOf(
+                        DateTimeAfter(1686433017)
+                    )
+                ),
+                Rule(
+                    ruleExpires = 1686433017,
+                    iss = listOf(
+                        StringEquals("bad-iss.mfrancza.com")
+                    )
+                ),
+                Rule(
+                    ruleExpires = 1686433017,
+                    aud = listOf(
+                        StringEquals("bad-aud.mfrancza.com")
+                    )
+                )
+            ),
+            timestamp = 1693860712,
+        )
+
+        val mockEngine = MockEngine { request ->
+            assertEquals("/jwt-revocation-manager/ruleset", request.url.encodedPath, "relative path should be /ruleset")
+            respond(
+                content = ByteReadChannel(Json.encodeToString(expectedRuleSet)),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val client = ManagerClient("https://mfrancza.com/jwt-revocation-manager", {}, mockEngine)
+
+        assertEquals(expectedRuleSet, client.getRuleSet(), "The expected rule set should be deserialized")
+    }
 
     @Test
     fun getRulesWithNoLimit() = runTest {

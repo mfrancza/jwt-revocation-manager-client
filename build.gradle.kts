@@ -27,7 +27,21 @@ repositories {
 
 kotlin {
     jvmToolchain(11)
-    jvm()
+    jvm {
+        testRuns["test"].executionTask.configure {
+            useJUnitPlatform{
+                excludeTags("integration")
+            }
+        }
+
+        testRuns.create("integrationTest") {
+            this.setExecutionSourceFrom(classpath = testRuns["test"].executionSource.classpath, testRuns["test"].executionSource.testClassesDirs)
+        }.executionTask.configure {
+            useJUnitPlatform{
+                includeTags("integration")
+            }
+        }
+    }
     js {
         compilations["main"].packageJson {}
         binaries.library()

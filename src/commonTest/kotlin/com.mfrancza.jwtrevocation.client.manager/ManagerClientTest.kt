@@ -29,43 +29,51 @@ import kotlin.test.assertTrue
 
 class ManagerClientTest {
 
-    @Test
-    fun getRuleSet() = runTest {
-        val expectedRuleSet = RuleSet(
-            rules = listOf(
-                Rule(
-                    ruleExpires =  1686433017,
-                    exp = listOf(
-                        DateTimeAfter(1686433017)
-                    )
-                ),
-                Rule(
-                    ruleExpires = 1686433017,
-                    iss = listOf(
-                        StringEquals("bad-iss.mfrancza.com")
-                    )
-                ),
-                Rule(
-                    ruleExpires = 1686433017,
-                    aud = listOf(
-                        StringEquals("bad-aud.mfrancza.com")
-                    )
-                )
-            ),
-            timestamp = 1693860712,
-        )
+    private val referenceEpochSeconds : Long = 1673123605
 
+    @Test
+    fun getRuleSetRetrievedRuleSetIsCached() = runTest {
+        val expectedRuleSet = RuleSet(
+            rules = listOf(),
+            timestamp = referenceEpochSeconds
+        )
         val mockEngine = MockEngine { request ->
-            assertEquals("/jwt-revocation-manager/ruleset", request.url.encodedPath, "relative path should be /ruleset")
             respond(
                 content = ByteReadChannel(Json.encodeToString(expectedRuleSet)),
                 status = HttpStatusCode.OK,
                 headers = headersOf(HttpHeaders.ContentType, "application/json")
             )
         }
-        val client = ManagerClient("https://mfrancza.com/jwt-revocation-manager", {}, mockEngine)
+        val client = ManagerClient("https://mfrancza.com/ruleset", {}, mockEngine)
 
-        assertEquals(expectedRuleSet, client.getRuleSet(), "The expected rule set should be deserialized")
+        assertEquals(expectedRuleSet, client.getRuleSet(), "The returned rule set should match the one from the server")
+    }
+
+    @Test
+    fun getRuleSetRetrievedRuleSetMatchesValueFromServer() = runTest {
+        val expectedRuleSet = RuleSet(
+            rules = listOf(),
+            timestamp = referenceEpochSeconds
+        )
+
+        var timesCalled = 0
+        val mockEngine = MockEngine { request ->
+            timesCalled++
+            respond(
+                content = ByteReadChannel(Json.encodeToString(expectedRuleSet)),
+                status = HttpStatusCode.OK,
+                headers = headersOf(
+                    Pair(HttpHeaders.ContentType, listOf("application/json")),
+                    Pair(HttpHeaders.CacheControl, listOf("max-age=604800"))
+                )
+            )
+        }
+        val client = ManagerClient("https://mfrancza.com/ruleset", {}, mockEngine)
+
+        assertEquals(expectedRuleSet, client.getRuleSet(), "The returned rule set should match the one from the server")
+        assertEquals(expectedRuleSet, client.getRuleSet(), "The returned rule set should still match the one from the server")
+
+        assertEquals(1, timesCalled, "The result should be cached from the first call")
     }
 
     @Test

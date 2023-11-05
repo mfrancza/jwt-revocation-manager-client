@@ -69,7 +69,11 @@ kotlin {
             }
         }
         val jvmMain by getting
-        val jvmTest by getting
+        val jvmTest by getting {
+            dependencies {
+                implementation("io.ktor:ktor-client-cio:$ktorVersion")
+            }
+        }
         val jsMain by getting
         val jsTest by getting
     }
